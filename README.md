@@ -17,3 +17,10 @@ In order to make it work:
   * Upload the files to Pico;
   * Reset and disconnect from PC;
   * Done!
+
+Components list:
+* Screen: HD44780
+* I2C Controller: PCF8574T
+* Raspberry Pi Pico W
+* 4 cables with connectors male-female
+* MicroUSB cable
