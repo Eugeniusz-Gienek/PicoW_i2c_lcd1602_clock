@@ -24,9 +24,17 @@ Components list:
 * Raspberry Pi Pico W
 * 4 cables with connectors male-female
 * MicroUSB cable
+* (optional) Screen holder
 
 Scheme:
 ![Connection scheme](./.readme/LCD1602_I2C_PICO_W_Scheme.png "Scheme")
 
 Working result:
-![Result](./.readme/repository-open-graph-1602-i2c-pico-w.png "Photo")
+![Result](./.readme/repository-open-graph-1602-i2c-pico-w.png "Result")
+
+Screen holder:
+![Scheen holder 1](./.readme/OBUDOWA-AKRYLOWA-UCHWYT-DO-WYSWIETLACZA-LCD-1602.jpg "ScreenHolder1")
+
+![Scheen holder 2](./.readme/OBUDOWA-AKRYLOWA-UCHWYT-DO-WYSWIETLACZA-LCD-1602-Kod-producenta-OBUDOWA-AKRYLOWA-UCHWYT-DO-WYSWIETLACZA.jpg "ScreenHolder2")
+
+![Scheen holder 3](./.readme/OBUDOWA-AKRYLOWA-UCHWYT-DO-WYSWIETLACZA-LCD-1602-EAN-GTIN-5903689136150.webp "ScreenHolder3")
