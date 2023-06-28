@@ -19,12 +19,12 @@ In order to make it work:
   * Done!
 
 Components list:
-* Screen: HD44780
+* Screen: HD44780 (in PL screen and I2C can be bought for example [here](https://allegro.pl/oferta/wyswietlacz-2x16-1602-hd44780-konwerter-i2c-arduin-10212781621) )
 * I2C Controller: PCF8574T
 * Raspberry Pi Pico W
 * 4 cables with connectors male-female
 * MicroUSB cable
-* (optional) Screen holder
+* (optional) Screen holder (in PL can be bought for example [here](https://allegro.pl/oferta/obudowa-akrylowa-uchwyt-do-wyswietlacza-lcd-1602-8753774604) )
 
 Scheme:
 ![Connection scheme](./.readme/LCD1602_I2C_PICO_W_Scheme.png "Scheme")
