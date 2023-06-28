@@ -1,5 +1,6 @@
 # PicoW_i2c_lcd1602_clock
-The simple digital clock, built using Pico W, LCD 1602 with i2c interface
+The simple digital clock, which syncs with NTP server via WiFi.
+Built using Pico W, LCD 1602 with i2c interface
 
 In order to make it work:
 
