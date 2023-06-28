@@ -19,7 +19,7 @@ In order to make it work:
   * Done!
 
 Components list:
-* **Screen: HD44780**<br/> <sub><sup>_(in PL screen and I2C can be bought for example [here](https://allegro.pl/oferta/wyswietlacz-2x16-1602-hd44780-konwerter-i2c-arduin-10212781621) )_</sup></sub>
+* **Screen: HD44780**<br/> <sub><sup>_(in PL screen and I2C can be bought for example [here](https://allegro.pl/oferta/wyswietlacz-2x16-1602-hd44780-konwerter-i2c-arduin-10212781621) or [here](https://botland.com.pl/wyswietlacze-alfanumeryczne-i-graficzne/2351-wyswietlacz-lcd-2x16-znakow-niebieski-konwerter-i2c-lcm1602-5904422309244.html) )_</sup></sub>
 * **I2C Controller: PCF8574T**
 * **Raspberry Pi Pico W**<br/> <sub><sup>_(in PL can be bought for example [here](https://botland.com.pl/moduly-i-zestawy-do-raspberry-pi-pico/21574-raspberry-pi-pico-w-rp2040-arm-cortex-m0-cyw43439-wifi-5056561803173.html) )_</sup></sub>
 * **4 cables with connectors male-female**<br/> <sub><sup>_(in PL can be bought for example [here](https://botland.com.pl/przewody-polaczeniowe-zensko-meskie/19621-zestaw-przewodow-polaczeniowych-justpi-zensko-meskie-20cm-40szt-5903351243025.html) )_</sup></sub>
