@@ -24,3 +24,9 @@ Components list:
 * Raspberry Pi Pico W
 * 4 cables with connectors male-female
 * MicroUSB cable
+
+Scheme:
+![Connection scheme](./.readme/LCD1602_I2C_PICO_W_Scheme.png "Scheme")
+
+Working result:
+![Result](./.readme/repository-open-graph-1602-i2c-pico-w.png "Photo")
