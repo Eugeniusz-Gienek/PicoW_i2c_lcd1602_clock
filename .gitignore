@@ -1,2 +1,9 @@
-./secrets.py*
-./config.py*
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+./secrets.py
+./config.py
