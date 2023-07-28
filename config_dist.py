@@ -1,0 +1,13 @@
+ntp_host = ["0.pool.ntp.org"]
+max_wait_wifi_attempt_sec = 10
+wifi_reconnect_time = 5
+wifi_reconnect_attempts_per_attempt = 2
+wifi_wait_time_per_attempt = 15
+wifi_wait_time_step = 1
+ntp_srv_timeout = 20
+ha_srv_timeout = 20
+ha_api_url_temperature = "https://homeassistant.myawesomeserver:8123/api/states/weather.forecast_dom"
+ha_api_temperature_json_path = "['attributes']['temperature']"
+temperature_units = "celsius"
+temperature_sync_time_sec = 900 #15*60seconds
+wifi_ip_config = {'mode':'static', 'params':{'ip':'192.168.0.10','mask':'255.255.255.0','gateway':'192.168.0.1','dns':'192.168.0.1'}}
