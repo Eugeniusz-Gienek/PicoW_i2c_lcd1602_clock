@@ -36,10 +36,10 @@ from config import sync_weather, ha_api_url_temperature, ha_api_temperature_json
 from config import wifi_ip_config
 from config import ntp_srv_timeout
 from config import ha_srv_timeout
-from config import cycle_time_ms
-from config import is_metric
+from config import cycle_time_ms, cycle_time_ms_no_sec
+from config import is_metric, show_seconds, use_24h_clock, disable_ampm
 from config import reconnect_on_ha_gone
-from config import resync_ntp, resync_ntp_frequency_sec, reconnect_on_ntp_gone
+from config import resync_ntp, resync_ntp_frequency_sec, reconnect_on_ntp_gone, daylight_time_savings
 
 
 NTP_DELTA = 2208988800
@@ -65,23 +65,21 @@ wlan_power_config = None
 wlan_already_tried_perf_mode = False
 #wlan_power_config = network.WLAN.PM_POWERSAVE
 
-def cet_time(is_utf=False):
+def local_tz_time(is_utf=False, use_daylight_time_savings=True):
     year = time.localtime()[0]       #get current year
-    HHMarch   = time.mktime((year,3 ,(31-(int(5*year/4+4))%7),1,0,0,0,0,0)) #Time of March change to CEST
-    HHOctober = time.mktime((year,10,(31-(int(5*year/4+1))%7),1,0,0,0,0,0)) #Time of October change to CET
+    HHMarch   = time.mktime((year,3 ,(31-(int(5*year/4+4))%7),1,0,0,0,0,0)) #Time of March change
+    HHOctober = time.mktime((year,10,(31-(int(5*year/4+1))%7),1,0,0,0,0,0)) #Time of October change
     now=time.time()
-    offset_base = 0
-    if is_utf:
-        cet=time.localtime(now+offset_base)
-    elif (now <= HHMarch) or (now >= HHOctober):               # we are before last sunday of march
-        cet=time.localtime(now+offset_base+3600) # CET:  UTC+2H
-    elif (now < HHOctober) or (now > HHMarch):           # we are before last sunday of october
-        cet=time.localtime(now+offset_base) # CEST: UTC+1H
-        #print("we are before last sunday of october")
-    else:                            # we are after last sunday of october
-        cet=time.localtime(now+offset_base) # CET:  UTC+1H
-        #print("we are after last sunday of october")
-    return(cet)
+    offset_base = 0 # for debugging purposes mostly
+    if is_utf or (not daylight_time_savings):
+        local_tz_tm = time.localtime(now+offset_base)
+    elif (now <= HHMarch) or (now >= HHOctober):            # we are before last sunday of march or after last sunday of october
+        local_tz_tm = time.localtime(now+offset_base+3600) 
+    elif (now < HHOctober) and (now > HHMarch):              # we are between last sunday of march and last sunday of october
+        local_tz_tm = time.localtime(now+offset_base)
+    else:                                                   # everything else falls here (shouldn't be though)
+        local_tz_tm = time.localtime(now+offset_base)
+    return(local_tz_tm)
 
 async def q_set_time():
     NTP_QUERY = bytearray(48)
@@ -113,9 +111,9 @@ async def q_set_time():
             break
     if time_is_set:
         print("UTC time after synchronization：%s" %str(time.localtime()))
-        t = cet_time(True)
-        t_utf = cet_time(True)
-        print("CET time after synchronization : %s" %str(t))
+        t = local_tz_time(True, daylight_time_savings)
+        t_utf = local_tz_time(True, daylight_time_savings)
+        print("Local timezone time after synchronization : %s" %str(t))
         machine.RTC().datetime((t_utf[tm_year], t_utf[tm_mon], t_utf[tm_mday], t_utf[tm_wday] + 1, t_utf[tm_hour], t_utf[tm_min], t_utf[tm_sec], 0))
         print("Local time after synchronization：%s" %str(time.localtime()))
         print("NTP sync successful.");
@@ -301,7 +299,7 @@ while True:
             wifi_down = False
             
             while True:
-                t = cet_time(False)
+                t = local_tz_time(False, daylight_time_savings)
                 temp_sec_cntr_chk = time.time()
                 ntp_sec_cntr_chk = temp_sec_cntr_chk # reuse for optimization
                 #sync NTP
@@ -362,7 +360,11 @@ while True:
                     lcd.putstr(new_date)
                     last_date = new_date
                 lcd.move_to(0,1)
-                lcd.putstr(""+str((("0"+str(t[tm_hour])) if (t[tm_hour]<10) else str(t[tm_hour])))+":"+str((("0"+str(t[tm_min])) if (t[tm_min]<10) else str(t[tm_min])))+":"+str((("0"+str(t[tm_sec])) if (t[tm_sec]<10) else str(t[tm_sec]))))
+                if use_24h_clock:
+                    lcd.putstr(""+str((("0"+str(t[tm_hour])) if (t[tm_hour]<10) else str(t[tm_hour])))+":"+str((("0"+str(t[tm_min])) if (t[tm_min]<10) else str(t[tm_min])))+ ((":"+str((("0"+str(t[tm_sec])) if (t[tm_sec]<10) else str(t[tm_sec]))) ) if show_seconds else "") )
+                else:
+                    t_tm_hour = t[tm_hour] % 13 # 0 .. 12
+                    lcd.putstr(""+str((("0"+str(t_tm_hour)) if (t_tm_hour<10) else str(t_tm_hour)))+":"+str((("0"+str(t[tm_min])) if (t[tm_min]<10) else str(t[tm_min]))) + ((":"+str((("0"+str(t[tm_sec])) if (t[tm_sec]<10) else str(t[tm_sec]))) ) if ((show_seconds and not sync_weather) or disable_ampm) else "")  + ((" " + ( "AM" if t_tm_hour < t[tm_hour] else "PM")) if not disable_ampm else "") )
                 if sync_weather:
                     if(old_current_temperature != current_temperature):
                         old_current_temperature = current_temperature
@@ -377,10 +379,7 @@ while True:
                                 lcd.move_to(11,1)
                             else:
                                 lcd.move_to(10,1)
-                            if(current_temperature <=-1000) or (current_temperature>=10):
-                                lcd.putstr("" + f'{current_temperature:.0f}'+"\x00"+("C" if (temperature_units == "celsius") else "F" ))
-                            else:
-                                lcd.putstr("" + f'{current_temperature:.1f}'+"\x00"+("C" if (temperature_units == "celsius") else "F" ))
+                            lcd.putstr("" + (f'{current_temperature:.0f}' if ((current_temperature <=-1000) or (current_temperature>=10)) else f'{current_temperature:.1f}')+"\x00"+("C" if (temperature_units == "celsius") else ("K" if (temperature_units == "kelvin") else ("F" if (temperature_units == "farenheit") else "" ))))
                         else:
                             lcd.putstr(" ------")
                     if current_temperature == None:
@@ -389,7 +388,7 @@ while True:
                             break
                         else:
                             current_temperature = old_current_temperature
-                time.sleep(cycle_time_ms/1000)
+                time.sleep((cycle_time_ms if show_seconds else cycle_time_ms_no_sec)/1000)
         else:
             pass
     lcd.move_to(0,0)
