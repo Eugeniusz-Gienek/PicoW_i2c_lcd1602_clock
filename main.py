@@ -36,6 +36,7 @@ from config import ha_api_url_temperature, ha_api_temperature_json_path, tempera
 from config import wifi_ip_config
 from config import ntp_srv_timeout
 from config import ha_srv_timeout
+from config import cycle_time_ms
 
 
 NTP_DELTA = 2208988800
@@ -61,19 +62,21 @@ wlan_power_config = None
 wlan_already_tried_perf_mode = False
 #wlan_power_config = network.WLAN.PM_POWERSAVE
 
-def cet_time():
+def cet_time(is_utf=False):
     year = time.localtime()[0]       #get current year
     HHMarch   = time.mktime((year,3 ,(31-(int(5*year/4+4))%7),1,0,0,0,0,0)) #Time of March change to CEST
     HHOctober = time.mktime((year,10,(31-(int(5*year/4+1))%7),1,0,0,0,0,0)) #Time of October change to CET
     now=time.time()
-    offet_base = 0
-    if now < HHMarch :               # we are before last sunday of march
-        cet=time.localtime(now+offet_base) # CET:  UTC+1H
-    elif now < HHOctober :           # we are before last sunday of october
-        cet=time.localtime(now+offet_base+3600) # CEST: UTC+2H
+    offset_base = 0
+    if is_utf:
+        cet=time.localtime(now+offset_base)
+    elif (now <= HHMarch) or (now >= HHOctober):               # we are before last sunday of march
+        cet=time.localtime(now+offset_base+3600) # CET:  UTC+2H
+    elif (now < HHOctober) or (now > HHMarch):           # we are before last sunday of october
+        cet=time.localtime(now+offset_base) # CEST: UTC+1H
         #print("we are before last sunday of october")
     else:                            # we are after last sunday of october
-        cet=time.localtime(now+offet_base) # CET:  UTC+1H
+        cet=time.localtime(now+offset_base) # CET:  UTC+1H
         #print("we are after last sunday of october")
     return(cet)
 
@@ -107,9 +110,10 @@ async def q_set_time():
             break
     if time_is_set:
         print("UTC time after synchronization：%s" %str(time.localtime()))
-        t = cet_time()
+        t = cet_time(True)
+        t_utf = cet_time(True)
         print("CET time after synchronization : %s" %str(t))
-        machine.RTC().datetime((t[tm_year], t[tm_mon], t[tm_mday], t[tm_wday] + 1, t[tm_hour], t[tm_min], t[tm_sec], 0))
+        machine.RTC().datetime((t_utf[tm_year], t_utf[tm_mon], t_utf[tm_mday], t_utf[tm_wday] + 1, t_utf[tm_hour], t_utf[tm_min], t_utf[tm_sec], 0))
         print("Local time after synchronization：%s" %str(time.localtime()))
         print("NTP sync successful.");
         global time_was_synced
@@ -265,6 +269,7 @@ while True:
                 print("NTP sync exception!")
                 print("Error message: "+str(e))
                 print("Maybe NTP server unavailable?")
+                print("Error was: ", e)
                 lcd.clear()
                 lcd.putstr("Time sync error!\n")
                 req_attention()
@@ -292,7 +297,7 @@ while True:
             wifi_down = False
             while True:
                 #show date and time
-                t = cet_time()
+                t = cet_time(False)
                 temp_sec_cntr_chk = time.time()
                 if(temp_sec_cntr_chk - temp_sec_cntr >= temperature_sync_time_sec):
                     uasyncio.run(get_current_temperature(ha_api_url_temperature, ha_headers, ha_api_temperature_json_path))
@@ -326,15 +331,26 @@ while True:
                 if(old_current_temperature != current_temperature):
                     old_current_temperature = current_temperature
                     # output current temperature
-                    lcd.move_to(10,1)
+                    lcd.move_to(9,1)
+                    lcd.putstr("       ")
+                    lcd.move_to(9,1)
                     if (current_temperature != None):
-                        lcd.putstr("" + f'{current_temperature:.1f}'+"\x00"+("C" if (temperature_units == "celsius") else "F" ))
+                        if(current_temperature <= -10) or (current_temperature >= 100):
+                            lcd.move_to(9,1)
+                        elif (current_temperature >= 0) and (current_temperature < 10):
+                            lcd.move_to(11,1)
+                        else:
+                            lcd.move_to(10,1)
+                        if(current_temperature <=-1000) or (current_temperature>=10):
+                            lcd.putstr("" + f'{current_temperature:.0f}'+"\x00"+("C" if (temperature_units == "celsius") else "F" ))
+                        else:
+                            lcd.putstr("" + f'{current_temperature:.1f}'+"\x00"+("C" if (temperature_units == "celsius") else "F" ))
                     else:
                         lcd.putstr(" ------")
                 if current_temperature == None:
                     wifi_down = True
                     break
-                time.sleep(0.5)
+                time.sleep(cycle_time_ms/1000)
         else:
             pass
     lcd.move_to(0,0)
