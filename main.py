@@ -37,6 +37,9 @@ from config import wifi_ip_config
 from config import ntp_srv_timeout
 from config import ha_srv_timeout
 from config import cycle_time_ms
+from config import is_metric
+from config import reconnect_on_ha_gone
+from config import resync_ntp, resync_ntp_frequency_sec, reconnect_on_ntp_gone
 
 
 NTP_DELTA = 2208988800
@@ -202,6 +205,7 @@ while True:
     wlan.connect(WIFI_SSID, WIFI_PASSWORD)
     temp_sec_cntr_chk = time.time()
     temp_sec_cntr_chk_init = temp_sec_cntr_chk
+    ntp_sec_cntr_chk = time.time()
     wifi_indicator_status_i = False
     init_str_l = max(len(str(wifi_wait_time_per_attempt * wifi_reconnect_attempts_per_attempt)),1)
     curr_str_l = init_str_l
@@ -263,6 +267,7 @@ while True:
                     lcd.clear()
                     lcd.putstr("Synced.\n")
                     time_was_synced_at_least_once = True
+                    ntp_sec_cntr = time.time()
                 else:
                     raise Exception("Time sync error!")
             except Exception as e:
@@ -273,10 +278,8 @@ while True:
                 lcd.clear()
                 lcd.putstr("Time sync error!\n")
                 req_attention()
-                #wlan.active(False)
-                #time.sleep(wifi_reconnect_time)
-                #continue
                 time_sync_progress = False
+                break
         if(time_sync_progress):
             lcd.blink_cursor_off()
             lcd.hide_cursor()
@@ -295,15 +298,42 @@ while True:
             lcd.move_to(15,0)
             lcd.putstr("\x01")
             wifi_down = False
+            
             while True:
-                #show date and time
                 t = cet_time(False)
                 temp_sec_cntr_chk = time.time()
+                ntp_sec_cntr_chk = temp_sec_cntr_chk # reuse for optimization
+                #sync NTP
+                if resync_ntp and (ntp_sec_cntr_chk - ntp_sec_cntr >= resync_ntp_frequency_sec):
+                    lcd.clear()
+                    lcd.putstr("Resyncing time...\n")
+                    try:
+                        uasyncio.run(q_try_set_time())
+                        time_set_status = time_was_synced
+                        if time_set_status:
+                            lcd.clear()
+                            lcd.putstr("Synced.\n")
+                            time_was_synced_at_least_once = True
+                            ntp_sec_cntr = time.time()
+                        elif reconnect_on_ntp_gone:
+                            raise Exception("Time sync error!")
+                    except Exception as e:
+                        print("NTP resync exception!")
+                        print("Error message: "+str(e))
+                        print("Maybe NTP server unavailable?")
+                        print("Error was: ", e)
+                        lcd.clear()
+                        lcd.putstr("Time sync error!\n")
+                        req_attention()
+                        time_sync_progress = False
+                    ntp_sec_cntr = ntp_sec_cntr_chk # it already has current timestamp
+                #show temperature
                 if(temp_sec_cntr_chk - temp_sec_cntr >= temperature_sync_time_sec):
                     uasyncio.run(get_current_temperature(ha_api_url_temperature, ha_headers, ha_api_temperature_json_path))
                     current_temperature = last_temp_value if last_temp_set else None
                     #print("Current temperature received: ", current_temperature)
-                    temp_sec_cntr = time.time()
+                    temp_sec_cntr = temp_sec_cntr_chk # it already has current timestamp
+                #show date and time
                 #t[tm_year], t[tm_mon], t[tm_mday], t[tm_wday] + 1, t[tm_hour], t[tm_min], t[tm_sec]
                 #lcd.clear()
                 wday = ""
@@ -321,7 +351,10 @@ while True:
                     wday = "Sa"
                 elif(t[tm_wday] == 6):
                     wday = "Su"
-                new_date = ""+str((("0"+str(t[tm_mday])) if (t[tm_mday]<10) else str(t[tm_mday])))+"/"+str((("0"+str(t[tm_mon])) if (t[tm_mon]<10) else str(t[tm_mon])))+"/"+str(t[tm_year])+"  "+wday+"\n"
+                if is_metric:
+                    new_date = ""+str((("0"+str(t[tm_mday])) if (t[tm_mday]<10) else str(t[tm_mday])))+"/"+str((("0"+str(t[tm_mon])) if (t[tm_mon]<10) else str(t[tm_mon])))+"/"+str(t[tm_year])+"  "+wday+"\n"
+                else:
+                    new_date = ""+str((("0"+str(t[tm_mon])) if (t[tm_mon]<10) else str(t[tm_mon])))+"/"+str((("0"+str(t[tm_mday])) if (t[tm_mday]<10) else str(t[tm_mday])))+"/"+str(t[tm_year])+"  "+wday+"\n"
                 if new_date != last_date:
                     lcd.move_to(0,0)
                     lcd.putstr(new_date)
@@ -348,8 +381,11 @@ while True:
                     else:
                         lcd.putstr(" ------")
                 if current_temperature == None:
-                    wifi_down = True
-                    break
+                    if reconnect_on_ha_gone:
+                        wifi_down = True
+                        break
+                    else:
+                        current_temperature = old_current_temperature
                 time.sleep(cycle_time_ms/1000)
         else:
             pass
