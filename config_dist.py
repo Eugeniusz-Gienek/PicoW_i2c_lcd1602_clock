@@ -11,6 +11,7 @@ wifi_reconnect_attempts_per_attempt = 2
 wifi_wait_time_per_attempt = 15
 wifi_wait_time_step = 1
 ntp_srv_timeout = 20
+sync_weather = 1
 ha_srv_timeout = 20
 ha_api_url_temperature = "https://homeassistant.myawesomeserver:8123/api/states/weather.forecast_dom"
 ha_api_temperature_json_path = "['attributes']['temperature']"
