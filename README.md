@@ -1,5 +1,5 @@
 # PicoW_i2c_lcd1602_clock
-The simple digital clock, which syncs with NTP server via WiFi. Can also sync with Home Asistant to show current weather.
+The simple digital clock, which syncs with NTP server via WiFi. Can also sync with Home Assistant to show current weather (by default uses met.no HA plugin).
 Built using Pico W, LCD 1602 with i2c interface
 
 In order to make it work:
