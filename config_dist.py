@@ -1,7 +1,7 @@
 is_metric = 1
 reconnect_on_ha_gone = 1
 resync_ntp = 1
-resync_ntp_frequency = 604800 # 86400*7 - 7 days
+resync_ntp_frequency_sec = 604800 # 86400*7 - 7 days
 ntp_host = ["0.pool.ntp.org"]
 cycle_time_ms = 200
 max_wait_wifi_attempt_sec = 10
