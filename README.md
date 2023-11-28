@@ -8,6 +8,8 @@ In order to make it work:
   * Download repo
   * Copy secrets_dist.py file to secrets.py file
   * Adjust data in secrets.py file
+  * Copy settings_dist.py to.config.py file
+  * Adjust data in config.py file
 2. Hardware:
   * Connect LCD 1602 VCC to Pico VBUS pin
   * Connect LCD 1602 GND to any Pico GND pin (for example, 38th)
