@@ -32,7 +32,7 @@ from secrets import WIFI_SSID, WIFI_PASSWORD
 from secrets import HA_TOKEN
 from config import ntp_host
 from config import max_wait_wifi_attempt_sec, wifi_reconnect_time, wifi_wait_time_per_attempt, wifi_wait_time_step, wifi_reconnect_attempts_per_attempt
-from config import ha_api_url_temperature, ha_api_temperature_json_path, temperature_sync_time_sec, temperature_units
+from config import sync_weather, ha_api_url_temperature, ha_api_temperature_json_path, temperature_sync_time_sec, temperature_units
 from config import wifi_ip_config
 from config import ntp_srv_timeout
 from config import ha_srv_timeout
@@ -284,14 +284,15 @@ while True:
             lcd.blink_cursor_off()
             lcd.hide_cursor()
             last_date = ""
-            # Get weather data
-            lcd.clear()
-            lcd.putstr("Syncing temperature...\n")
-            temp_sec_cntr = time.time()
-            old_current_temperature = None
-            uasyncio.run(get_current_temperature(ha_api_url_temperature, ha_headers, ha_api_temperature_json_path))
-            current_temperature = last_temp_value if last_temp_set else None
-            print("Current temperature received: ", current_temperature)
+            if sync_weather:
+                # Get weather data
+                lcd.clear()
+                lcd.putstr("Syncing temperature...\n")
+                temp_sec_cntr = time.time()
+                old_current_temperature = None
+                uasyncio.run(get_current_temperature(ha_api_url_temperature, ha_headers, ha_api_temperature_json_path))
+                current_temperature = last_temp_value if last_temp_set else None
+                print("Current temperature received: ", current_temperature)
             lcd.clear()
             lcd.putstr("Synced.\n")
             # EOF getting weather data
@@ -327,12 +328,13 @@ while True:
                         req_attention()
                         time_sync_progress = False
                     ntp_sec_cntr = ntp_sec_cntr_chk # it already has current timestamp
-                #show temperature
-                if(temp_sec_cntr_chk - temp_sec_cntr >= temperature_sync_time_sec):
-                    uasyncio.run(get_current_temperature(ha_api_url_temperature, ha_headers, ha_api_temperature_json_path))
-                    current_temperature = last_temp_value if last_temp_set else None
-                    #print("Current temperature received: ", current_temperature)
-                    temp_sec_cntr = temp_sec_cntr_chk # it already has current timestamp
+                if sync_weather:
+                    #show temperature
+                    if(temp_sec_cntr_chk - temp_sec_cntr >= temperature_sync_time_sec):
+                        uasyncio.run(get_current_temperature(ha_api_url_temperature, ha_headers, ha_api_temperature_json_path))
+                        current_temperature = last_temp_value if last_temp_set else None
+                        #print("Current temperature received: ", current_temperature)
+                        temp_sec_cntr = temp_sec_cntr_chk # it already has current timestamp
                 #show date and time
                 #t[tm_year], t[tm_mon], t[tm_mday], t[tm_wday] + 1, t[tm_hour], t[tm_min], t[tm_sec]
                 #lcd.clear()
@@ -361,31 +363,32 @@ while True:
                     last_date = new_date
                 lcd.move_to(0,1)
                 lcd.putstr(""+str((("0"+str(t[tm_hour])) if (t[tm_hour]<10) else str(t[tm_hour])))+":"+str((("0"+str(t[tm_min])) if (t[tm_min]<10) else str(t[tm_min])))+":"+str((("0"+str(t[tm_sec])) if (t[tm_sec]<10) else str(t[tm_sec]))))
-                if(old_current_temperature != current_temperature):
-                    old_current_temperature = current_temperature
-                    # output current temperature
-                    lcd.move_to(9,1)
-                    lcd.putstr("       ")
-                    lcd.move_to(9,1)
-                    if (current_temperature != None):
-                        if(current_temperature <= -10) or (current_temperature >= 100):
-                            lcd.move_to(9,1)
-                        elif (current_temperature >= 0) and (current_temperature < 10):
-                            lcd.move_to(11,1)
+                if sync_weather:
+                    if(old_current_temperature != current_temperature):
+                        old_current_temperature = current_temperature
+                        # output current temperature
+                        lcd.move_to(9,1)
+                        lcd.putstr("       ")
+                        lcd.move_to(9,1)
+                        if (current_temperature != None):
+                            if(current_temperature <= -10) or (current_temperature >= 100):
+                                lcd.move_to(9,1)
+                            elif (current_temperature >= 0) and (current_temperature < 10):
+                                lcd.move_to(11,1)
+                            else:
+                                lcd.move_to(10,1)
+                            if(current_temperature <=-1000) or (current_temperature>=10):
+                                lcd.putstr("" + f'{current_temperature:.0f}'+"\x00"+("C" if (temperature_units == "celsius") else "F" ))
+                            else:
+                                lcd.putstr("" + f'{current_temperature:.1f}'+"\x00"+("C" if (temperature_units == "celsius") else "F" ))
                         else:
-                            lcd.move_to(10,1)
-                        if(current_temperature <=-1000) or (current_temperature>=10):
-                            lcd.putstr("" + f'{current_temperature:.0f}'+"\x00"+("C" if (temperature_units == "celsius") else "F" ))
+                            lcd.putstr(" ------")
+                    if current_temperature == None:
+                        if reconnect_on_ha_gone:
+                            wifi_down = True
+                            break
                         else:
-                            lcd.putstr("" + f'{current_temperature:.1f}'+"\x00"+("C" if (temperature_units == "celsius") else "F" ))
-                    else:
-                        lcd.putstr(" ------")
-                if current_temperature == None:
-                    if reconnect_on_ha_gone:
-                        wifi_down = True
-                        break
-                    else:
-                        current_temperature = old_current_temperature
+                            current_temperature = old_current_temperature
                 time.sleep(cycle_time_ms/1000)
         else:
             pass
