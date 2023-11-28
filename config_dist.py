@@ -15,6 +15,7 @@ resync_ntp = 1 # whether to re-sync with NTP server after synced once on load
 resync_ntp_frequency_sec = 604800 # How often to re-sync with NTP server - e.g. once in 86400*7 - 7 days
 reconnect_on_ntp_gone = 0 # 0 for skip sync with NTP server if failed to re-sync or 1 for re-connect to WiFi and sync again (basically to re-start board). Will do so until the sync finally happens.
 ntp_srv_timeout = 20 # how long to wait for the NTP server to respond. In seconds.
+time_shift_minutes = 60 # time shift 
 
 #HA config
 reconnect_on_ha_gone = 1 # re-connect to WiFi if the HA server is gone. Will do that until the server becomes available.
