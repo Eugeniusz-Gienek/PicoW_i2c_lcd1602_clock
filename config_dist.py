@@ -1,4 +1,5 @@
 ntp_host = ["0.pool.ntp.org"]
+cycle_time_ms = 200
 max_wait_wifi_attempt_sec = 10
 wifi_reconnect_time = 5
 wifi_reconnect_attempts_per_attempt = 2
