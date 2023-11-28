@@ -39,7 +39,7 @@ from config import ha_srv_timeout
 from config import cycle_time_ms, cycle_time_ms_no_sec
 from config import is_metric, show_seconds, use_24h_clock, disable_ampm
 from config import reconnect_on_ha_gone
-from config import resync_ntp, resync_ntp_frequency_sec, reconnect_on_ntp_gone, daylight_time_savings
+from config import resync_ntp, resync_ntp_frequency_sec, reconnect_on_ntp_gone, daylight_time_savings, time_shift_minutes
 
 
 NTP_DELTA = 2208988800
@@ -65,12 +65,12 @@ wlan_power_config = None
 wlan_already_tried_perf_mode = False
 #wlan_power_config = network.WLAN.PM_POWERSAVE
 
-def local_tz_time(is_utf=False, use_daylight_time_savings=True):
+def local_tz_time(is_utf=False, use_daylight_time_savings=True, time_shift_sec=0):
     year = time.localtime()[0]       #get current year
     HHMarch   = time.mktime((year,3 ,(31-(int(5*year/4+4))%7),1,0,0,0,0,0)) #Time of March change
     HHOctober = time.mktime((year,10,(31-(int(5*year/4+1))%7),1,0,0,0,0,0)) #Time of October change
     now=time.time()
-    offset_base = 0 # for debugging purposes mostly
+    offset_base = time_shift_sec
     if is_utf or (not daylight_time_savings):
         local_tz_tm = time.localtime(now+offset_base)
     elif (now <= HHMarch) or (now >= HHOctober):            # we are before last sunday of march or after last sunday of october
@@ -299,7 +299,7 @@ while True:
             wifi_down = False
             
             while True:
-                t = local_tz_time(False, daylight_time_savings)
+                t = local_tz_time(False, daylight_time_savings, 60*time_shift_minutes)
                 temp_sec_cntr_chk = time.time()
                 ntp_sec_cntr_chk = temp_sec_cntr_chk # reuse for optimization
                 #sync NTP
