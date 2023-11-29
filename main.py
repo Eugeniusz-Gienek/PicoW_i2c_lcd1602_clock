@@ -42,7 +42,7 @@ from config import reconnect_on_ha_gone
 from config import resync_ntp, resync_ntp_frequency_sec, reconnect_on_ntp_gone, daylight_time_savings, time_shift_minutes
 
 
-NTP_DELTA = 2208988800
+NTP_DELTA = 3155673600 if time.gmtime(0)[0] == 2000 else 2208988800
 tm_year = 0
 tm_mon = 1 # range [1, 12]
 tm_mday = 2 # range [1, 31]
@@ -71,10 +71,11 @@ def local_tz_time(is_utf=False, use_daylight_time_savings=True, time_shift_sec=0
     HHOctober = time.mktime((year,10,(31-(int(5*year/4+1))%7),1,0,0,0,0,0)) #Time of October change
     now=time.time()
     offset_base = time_shift_sec
+    local_tz_tm = 0
     if is_utf or (not daylight_time_savings):
         local_tz_tm = time.localtime(now+offset_base)
     elif (now <= HHMarch) or (now >= HHOctober):            # we are before last sunday of march or after last sunday of october
-        local_tz_tm = time.localtime(now+offset_base+3600) 
+        local_tz_tm = time.localtime(now+offset_base-3600)
     elif (now < HHOctober) and (now > HHMarch):              # we are between last sunday of march and last sunday of october
         local_tz_tm = time.localtime(now+offset_base)
     else:                                                   # everything else falls here (shouldn't be though)
@@ -297,7 +298,6 @@ while True:
             lcd.move_to(15,0)
             lcd.putstr("\x01")
             wifi_down = False
-            
             while True:
                 t = local_tz_time(False, daylight_time_savings, 60*time_shift_minutes)
                 temp_sec_cntr_chk = time.time()
@@ -442,3 +442,4 @@ while True:
         lcd.move_to(16-curr_str_l,1)
         lcd.putstr(str(time_left))
         time.sleep(1)
+
