@@ -75,9 +75,9 @@ def local_tz_time(is_utf=False, use_daylight_time_savings=True, time_shift_sec=0
     if is_utf or (not daylight_time_savings):
         local_tz_tm = time.localtime(now+offset_base)
     elif (now <= HHMarch) or (now >= HHOctober):            # we are before last sunday of march or after last sunday of october
-        local_tz_tm = time.localtime(now+offset_base-3600)
-    elif (now < HHOctober) and (now > HHMarch):              # we are between last sunday of march and last sunday of october
         local_tz_tm = time.localtime(now+offset_base)
+    elif (now < HHOctober) and (now > HHMarch):              # we are between last sunday of march and last sunday of october
+        local_tz_tm = time.localtime(now+offset_base+3600)
     else:                                                   # everything else falls here (shouldn't be though)
         local_tz_tm = time.localtime(now+offset_base)
     return(local_tz_tm)
