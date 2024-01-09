@@ -310,8 +310,8 @@ while True:
                         uasyncio.run(q_try_set_time())
                         time_set_status = time_was_synced
                         if time_set_status:
-                            lcd.clear()
-                            lcd.putstr("Synced.\n")
+                            #lcd.clear()
+                            #lcd.putstr("Synced.\n")
                             time_was_synced_at_least_once = True
                             ntp_sec_cntr = time.time()
                         elif reconnect_on_ntp_gone:
