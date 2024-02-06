@@ -20,7 +20,7 @@ time_shift_minutes = 60 # time shift
 #HA config
 reconnect_on_ha_gone = 1 # re-connect to WiFi if the HA server is gone. Will do that until the server becomes available.
 ha_srv_timeout = 20  # how long to wait for the HA server to respond. In seconds.
-ha_api_url_temperature = "https://homeassistant.myawesomeserver:8123/api/states/weather.forecast_dom" # HA API url.
+ha_api_url_temperature = "https://homeassistant.myawesomeserver:8123/api/states/weather.forecast_home" # HA API url.
 ha_api_temperature_json_path = "['attributes']['temperature']" # the json sctructure to get the temperature from
 temperature_units = "celsius" # set the display to celsius, kelvin or farenheit. It doesn't convert data, just displays the symbol. If it is set to anything else - displays no symbol
 temperature_sync_time_sec = 900 #how often to get weather data from HA in seconds. For example, once in 15*60seconds
