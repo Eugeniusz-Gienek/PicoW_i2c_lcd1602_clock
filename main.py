@@ -246,7 +246,7 @@ while True:
             max_wait_wifi_sec -= 1
             #print('Waiting for connection...')
             time.sleep(1)
-        if wlan.status() != 3:
+        if wlan.status() != network.STAT_GOT_IP:
             lcd.clear()
             lcd.putstr("WiFi error.\n")
             lcd.putstr("Reconnect in "+str(wifi_reconnect_time)+"s")
