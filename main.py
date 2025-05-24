@@ -86,23 +86,72 @@ async def q_set_time():
     NTP_QUERY = bytearray(48)
     NTP_QUERY[0] = 0x1B
     time_is_set = False
+    ntp_port = 123
+    server_default_port = 50000
     print("Attempt to set time.\n")
+    # Defaulting to ipv4 if no params set.
+    if 'ipv6' not in wifi_ip_config:
+        wifi_ip_config['ipv6'] = 0
+    if 'ipv4' not in wifi_ip_config:
+        wifi_ip_config['ipv4'] = 1
     for host in ntp_host:
         print("Trying with NTP host: "+host)
-        addr = usocket.getaddrinfo(host, 123)[0][-1]
         try:
-            s = usocket.socket(usocket.AF_INET, usocket.SOCK_DGRAM)
+            if ((wifi_ip_config['ipv6'] != 1) and (wifi_ip_config['ipv4'] == 1)):
+                print("IPv4 only mode")
+                s = usocket.socket(usocket.AF_INET, usocket.SOCK_DGRAM) # UDP only
+                s.bind(('0.0.0.0', server_default_port))
+            elif ((wifi_ip_config['ipv6'] == 1) and (wifi_ip_config['ipv4'] == 0)):
+                print("IPv6 only mode")
+                s = usocket.socket(usocket.AF_INET6, usocket.SOCK_DGRAM) # UDP only
+                s.bind(('::', server_default_port))
+            elif ((wifi_ip_config['ipv6'] == 1) and (wifi_ip_config['ipv4'] == 1)):
+                print("IPv6 and IPv4 mode")
+                s = usocket.socket(usocket.AF_INET, usocket.SOCK_DGRAM) # UDP only
+                s.bind(('', server_default_port))
+            s.settimeout(ntp_srv_timeout)
+            conn_successful = False
             try:
-                s.settimeout(1)
-                res = s.sendto(NTP_QUERY, addr)
-                msg = s.recv(48)
-            finally:
+                addr = usocket.getaddrinfo(host, ntp_port)[0][-1]
+                conn_successful = True
+            except OSError as exc:
+                print("Error with socket - cannot convert domain name and port to a 5-tuple sequence. Host was: \""+str(host)+"\", port was: \""+str(ntp_port)+"\".")
+                if(exc.errno == -2):
+                    print("Current error code is \"-2\" which might indicate network issues - e.g. this IP is already assigned to a different device, subnet issues etc.")
+                time_is_set = False
                 s.close()
-            val = struct.unpack("!I", msg[40:44])[0]
-            t = val - NTP_DELTA    
-            tm = time.gmtime(t)
-            machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6] + 1, tm[3], tm[4], tm[5], 0))
-            time_is_set = True
+                print("Checking WiFi status...")
+                wifi_status = wlan.status()
+                if(wifi_status == network.STAT_IDLE):
+                    print("no connection and no activity")
+                elif(wifi_status == network.STAT_CONNECTING):
+                    print("connecting is STILL in progress")
+                elif(wifi_status == network.STAT_WRONG_PASSWORD):
+                    print("failed due to incorrect password")
+                elif(wifi_status == network.STAT_NO_AP_FOUND):
+                    print("failed because no access point replied")
+                elif(wifi_status == network.STAT_CONNECT_FAIL):
+                    print("failed due to other problems (some unknown ones)")
+                elif(wifi_status == network.STAT_GOT_IP):
+                    print("connection successful - actually we've got an IP, so no issues seem to be here.")
+                elif(wifi_status == 2):
+                    print("failed due to being unable to get IP address for some reason. Wifi connected though. DHCP problems?")
+                else:
+                    print("connection unsuccessful - without any reason specified. Code: {}".format(wifi_status))
+            if(conn_successful):
+                try:
+                    res = s.sendto(NTP_QUERY, addr)
+                    msg = s.recv(48)
+                finally:
+                    s.close()
+                val = struct.unpack("!I", msg[40:44])[0]
+                t = val - NTP_DELTA    
+                tm = time.gmtime(t)
+                machine.RTC().datetime((tm[0], tm[1], tm[2], tm[6] + 1, tm[3], tm[4], tm[5], 0))
+                time_is_set = True
+            else:
+                print("Cannot get time from host \""+str(host)+"\".\n")
+                time_is_set = False
         except OSError as exc:
             print("Could not get time from NTP host.")
             if exc.args[0] == 110: # ETIMEDOUT
@@ -131,7 +180,7 @@ async def q_try_set_time():
     t = uasyncio.create_task(q_set_time())
     await uasyncio.sleep(0)
     #print("Waiting "+str(ntp_srv_timeout+1)+" seconds for NTP.")
-    uasyncio.wait_for(t,ntp_srv_timeout)
+    uasyncio.wait_for(t,ntp_srv_timeout * len(ntp_host))
     #await uasyncio.sleep(ntp_srv_timeout+1)
     print("Done.")
     global time_was_synced
@@ -185,7 +234,7 @@ nowifi =  (0b00001,0b01110,0b10011,0b00100,0b01110,0b01000,0b10100,0b00000)
 lcd.custom_char(2, nowifi)
 max_wait_wifi_sec = max_wait_wifi_attempt_sec * wifi_reconnect_attempts_per_attempt
 
-
+wlan = None
 
 while True:
     wifi_connected = False
@@ -194,14 +243,54 @@ while True:
     lcd.move_to(0,0)
     lcd.clear()
     lcd.move_to(0,0)
-    lcd.putstr("Connecting to Wifi...")
-    # Connect to wifi firstly
-    wlan = network.WLAN(network.STA_IF)
-    #wlan.config(wlan_power_config)
-    wlan.active(True)
     if(wifi_ip_config['mode'] == 'static'):
+        lcd.putstr("Please use DHCP due to a MP bug.") # There seem to be a bug in MicroPython, connected to static IP.
+        req_attention()
+    lcd.clear()
+    lcd.move_to(0,0)
+    lcd.putstr("Connecting to Wifi.")
+    # Connect to wifi firstly
+    ap = network.WLAN(network.AP_IF)
+    ap.active(False)
+    time.sleep_us(100)
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    time.sleep_us(100)
+    #wlan.config(wlan_power_config)
+    lcd.clear()
+    lcd.move_to(0,0)
+    lcd.putstr("Connecting to Wifi..")
+    if(wifi_ip_config['mode'] == 'static'):
+        print("Static IP config (pre-init).")
+        time.sleep_us(100)
         wlan.ifconfig((wifi_ip_config['params']['ip'],wifi_ip_config['params']['mask'],wifi_ip_config['params']['gateway'],wifi_ip_config['params']['dns']))
+    wlan.disconnect()
+    time.sleep_us(100)
+    wlan.active(False)
+    time.sleep(1)
+    wlan.active(True)
+    time.sleep(1)
+    lcd.clear()
+    lcd.move_to(0,0)
+    lcd.putstr("Connecting to Wifi...")
     wlan.connect(WIFI_SSID, WIFI_PASSWORD)
+    if(wifi_ip_config['mode'] == 'static'):
+        print("Static IP config.")
+        wlan.ifconfig((wifi_ip_config['params']['ip'],wifi_ip_config['params']['mask'],wifi_ip_config['params']['gateway'],wifi_ip_config['params']['dns']))
+    else:
+        print("DHCP config.")
+        time.sleep_us(100)
+        try:
+            wlan.ifconfig("dhcp")
+        except OSError:
+            lcd.clear()
+            lcd.move_to(0,0)
+            lcd.putstr("DHCP issues.")
+            time.sleep_us(100)
+            continue
+    lcd.clear()
+    lcd.move_to(0,0)
+    lcd.putstr("Connecting to Wifi....")
     temp_sec_cntr_chk = time.time()
     temp_sec_cntr_chk_init = temp_sec_cntr_chk
     ntp_sec_cntr_chk = time.time()
@@ -235,9 +324,27 @@ while True:
     wifi_connected = wifi_indicator_status_i or wlan.isconnected()
     lcd.putstr(("Success\n" if wifi_connected else "Fail\n"))
     if wifi_connected:
+        if not wlan.isconnected():
+            print("Wlan suddenly disconnected! That's a problem.")
+            lcd.clear()
+            lcd.move_to(0,0)
+            lcd.putstr("WiFi disconnected. Restarting...\n")
+            continue
+        else:
+            print("Connection parameters: ")
+            print("general: ")
+            for p in wlan.ifconfig():
+                print(p)
+            print("IPv4: ")
+            for p in wlan.ipconfig('addr4'):
+                print(p)
+            print("IPv6: ")
+            for p in wlan.ipconfig('addr6'):
+                print(p)
+            print("=======================")
         time_sync_progress = True
         lcd.clear()
-        lcd.move_to(0,0)
+        
         lcd.putstr("NTP sync...\n")
         # Let's sync with NTP server
         while max_wait_wifi_sec > 0:
@@ -246,11 +353,11 @@ while True:
             max_wait_wifi_sec -= 1
             #print('Waiting for connection...')
             time.sleep(1)
-        if wlan.status() != network.STAT_GOT_IP:
+        if wlan.status() != 3:
             lcd.clear()
             lcd.putstr("WiFi error.\n")
             lcd.putstr("Reconnect in "+str(wifi_reconnect_time)+"s")
-            req_attention()
+            
             #wlan.active(False)
             #time.sleep(wifi_reconnect_time)
             #continue
@@ -292,12 +399,22 @@ while True:
                 uasyncio.run(get_current_temperature(ha_api_url_temperature, ha_headers, ha_api_temperature_json_path))
                 current_temperature = last_temp_value if last_temp_set else None
                 print("Current temperature received: ", current_temperature)
-            lcd.clear()
-            lcd.putstr("Synced.\n")
+                if current_temperature == None:
+                    lcd.clear()
+                    lcd.putstr("Error getting temperature.\n")
+                    req_attention()
+                    lcd.clear()
+                else:
+                    lcd.clear()
+                    lcd.putstr("Synced.\n")
+            else:
+                lcd.clear()
+                lcd.putstr("Synced.\n")
             # EOF getting weather data
             lcd.move_to(15,0)
             lcd.putstr("\x01")
             wifi_down = False
+            do_redraw_screen = False
             while True:
                 t = local_tz_time(False, daylight_time_savings, 60*time_shift_minutes)
                 temp_sec_cntr_chk = time.time()
@@ -326,6 +443,9 @@ while True:
                         req_attention()
                         time_sync_progress = False
                     ntp_sec_cntr = ntp_sec_cntr_chk # it already has current timestamp
+                    lcd.clear()
+                    lcd.move_to(0,0)
+                    do_redraw_screen = True
                 if sync_weather:
                     #show temperature
                     if(temp_sec_cntr_chk - temp_sec_cntr >= temperature_sync_time_sec):
@@ -333,6 +453,7 @@ while True:
                         current_temperature = last_temp_value if last_temp_set else None
                         #print("Current temperature received: ", current_temperature)
                         temp_sec_cntr = temp_sec_cntr_chk # it already has current timestamp
+                        do_redraw_screen = True
                 #show date and time
                 #t[tm_year], t[tm_mon], t[tm_mday], t[tm_wday] + 1, t[tm_hour], t[tm_min], t[tm_sec]
                 #lcd.clear()
@@ -355,7 +476,8 @@ while True:
                     new_date = ""+str((("0"+str(t[tm_mday])) if (t[tm_mday]<10) else str(t[tm_mday])))+"/"+str((("0"+str(t[tm_mon])) if (t[tm_mon]<10) else str(t[tm_mon])))+"/"+str(t[tm_year])+"  "+wday+"\n"
                 else:
                     new_date = ""+str((("0"+str(t[tm_mon])) if (t[tm_mon]<10) else str(t[tm_mon])))+"/"+str((("0"+str(t[tm_mday])) if (t[tm_mday]<10) else str(t[tm_mday])))+"/"+str(t[tm_year])+"  "+wday+"\n"
-                if new_date != last_date:
+                if (new_date != last_date) or do_redraw_screen:
+                    do_redraw_screen = False
                     lcd.move_to(0,0)
                     lcd.putstr(new_date)
                     last_date = new_date
@@ -381,7 +503,7 @@ while True:
                                 lcd.move_to(10,1)
                             lcd.putstr("" + (f'{current_temperature:.0f}' if ((current_temperature <=-1000) or (current_temperature>=10)) else f'{current_temperature:.1f}')+"\x00"+("C" if (temperature_units == "celsius") else ("K" if (temperature_units == "kelvin") else ("F" if (temperature_units == "farenheit") else "" ))))
                         else:
-                            lcd.putstr(" ------")
+                            lcd.putstr("       ")
                     if current_temperature == None:
                         if reconnect_on_ha_gone:
                             wifi_down = True
@@ -442,4 +564,6 @@ while True:
         lcd.move_to(16-curr_str_l,1)
         lcd.putstr(str(time_left))
         time.sleep(1)
-
+if(wlan):
+    wlan.disconnect()
+    wlan.active(False)
